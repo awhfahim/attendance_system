@@ -1,0 +1,88 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"args": [
+				"run"
+			],
+			"command": "dotnet",
+			"group": "build",
+			"isBackground": true,
+			"label": "Run Backend API",
+			"options": {
+				"cwd": "${workspaceFolder}/backend/AttendanceSystemAPI"
+			},
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"type": "shell",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "new",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"runOptions": {
+				"instanceLimit": 1
+			}
+		},
+		{
+			"label": "Run Flutter Web",
+			"type": "shell",
+			"command": "flutter",
+			"args": ["run", "-d", "chrome", "--web-port=3000"],
+			"group": "build",
+			"isBackground": true,
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "new",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"runOptions": {
+				"instanceLimit": 1
+			}
+		},
+		{
+			"label": "Run Both (Backend + Frontend)",
+			"dependsOrder": "parallel",
+			"dependsOn": [
+				"Run Backend API",
+				"Run Flutter Web"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "Test API Connection",
+			"type": "shell",
+			"command": "curl",
+			"args": [
+				"-s",
+				"-X",
+				"POST",
+				"http://localhost:5070/api/auth/login",
+				"-H",
+				"Content-Type: application/json",
+				"-d",
+				"{\"email\":\"admin@company.com\",\"password\":\"admin123\"}"
+			],
+			"group": "test",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared"
+			}
+		}
+	]
+}
