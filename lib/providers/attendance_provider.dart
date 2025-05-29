@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:io';
 import '../models/attendance_record.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
@@ -71,7 +72,7 @@ class AttendanceProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> checkIn({bool isRemote = false, String? notes}) async {
+  Future<bool> checkIn({bool isRemote = false, String? notes, File? image}) async {
     _setLoading(true);
     _clearError();
 
@@ -87,6 +88,7 @@ class AttendanceProvider with ChangeNotifier {
         location: locationData,
         isRemote: isRemote,
         notes: notes,
+        image: image,
       );
 
       if (response['success']) {
@@ -107,7 +109,7 @@ class AttendanceProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> checkOut({String? notes}) async {
+  Future<bool> checkOut({String? notes, File? image}) async {
     if (_todayAttendance == null || _todayAttendance!.isCheckedOut) {
       _setError('No active check-in found');
       return false;
@@ -127,6 +129,7 @@ class AttendanceProvider with ChangeNotifier {
         longitude: _currentPosition!.longitude,
         location: locationData,
         notes: notes,
+        image: image,
       );
 
       if (response['success']) {

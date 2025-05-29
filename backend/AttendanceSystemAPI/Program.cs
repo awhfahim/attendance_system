@@ -12,10 +12,33 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add CORS
+// Add CORS configuration for Flutter mobile app and web
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFlutterApp", policy =>
+    {
+        // Allow specific origins for web and all for mobile
+        policy.WithOrigins(
+                "http://localhost:3000",        // Flutter web dev
+                "http://127.0.0.1:3000",       // Alternative localhost
+                "https://ola-fahim.duckdns.org", // Production domain
+                "http://localhost:5070",        // Local API access
+                "http://127.0.0.1:5070",       // Alternative localhost API
+                "http://10.0.2.2:5070",        // Android emulator
+                "capacitor://localhost",        // Capacitor apps
+                "ionic://localhost",            // Ionic apps
+                "http://localhost",             // General localhost
+                "https://localhost"             // HTTPS localhost
+              )
+              .SetIsOriginAllowed(_ => true)    // Allow mobile apps (they don't send Origin)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials()
+              .WithExposedHeaders("*");
+    });
+    
+    // Add a permissive policy for development
+    options.AddPolicy("AllowAll", policy =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
@@ -42,7 +65,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = false; // Caddy handles SSL termination
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -71,9 +94,37 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    // Use more permissive CORS in development
+    app.UseCors("AllowAll");
+}
+else
+{
+    app.UseCors("AllowAll");
+    // Use specific CORS policy in production
+    app.UseCors("AllowFlutterApp");
 }
 
-app.UseCors("AllowFlutterApp");
+// Add additional headers for mobile apps
+app.Use(async (context, next) =>
+{
+    // Add CORS headers manually for mobile apps that might not send preflight requests
+    context.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+    context.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    context.Response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    context.Response.Headers.Add("Access-Control-Expose-Headers", "*");
+    
+    // Handle preflight requests
+    if (context.Request.Method == "OPTIONS")
+    {
+        context.Response.StatusCode = 200;
+        return;
+    }
+    
+    await next();
+});
+
+// Enable static file serving for images
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();

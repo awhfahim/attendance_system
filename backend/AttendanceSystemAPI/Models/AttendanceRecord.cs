@@ -26,6 +26,13 @@ namespace AttendanceSystemAPI.Models
         [StringLength(500)]
         public string? Notes { get; set; }
         
+        // Image paths for check-in and check-out photos
+        [StringLength(255)]
+        public string? CheckInImagePath { get; set; }
+        
+        [StringLength(255)]
+        public string? CheckOutImagePath { get; set; }
+        
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         // Computed property for date

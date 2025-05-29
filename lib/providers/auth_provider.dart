@@ -20,11 +20,22 @@ class AuthProvider with ChangeNotifier {
     try {
       final response = await ApiService.login(email, password);
       if (response['success']) {
-        // Convert backend camelCase to frontend snake_case
+        // Handle both mock data (snake_case) and backend data (camelCase)
         final userData = Map<String, dynamic>.from(response['user']);
-        userData['profile_image'] = userData['profileImage'];
-        userData['is_admin'] = userData['isAdmin'];
-        userData['created_at'] = userData['createdAt'];
+        
+        // Convert backend camelCase to frontend snake_case if needed
+        if (userData.containsKey('profileImage')) {
+          userData['profile_image'] = userData['profileImage'];
+          userData.remove('profileImage');
+        }
+        if (userData.containsKey('isAdmin')) {
+          userData['is_admin'] = userData['isAdmin'];
+          userData.remove('isAdmin');
+        }
+        if (userData.containsKey('createdAt')) {
+          userData['created_at'] = userData['createdAt'];
+          userData.remove('createdAt');
+        }
         
         _user = User.fromJson(userData);
         

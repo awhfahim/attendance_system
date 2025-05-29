@@ -54,3 +54,5 @@
 /home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/obj/Debug/net9.0/AttendanceSystemAPI.pdb
 /home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/obj/Debug/net9.0/AttendanceSystemAPI.genruntimeconfig.cache
 /home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/obj/Debug/net9.0/ref/AttendanceSystemAPI.dll
+/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/bin/Debug/net9.0/AttendanceSystemAPI.staticwebassets.runtime.json
+/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/obj/Debug/net9.0/AttendanceSystemAPI.sourcelink.json

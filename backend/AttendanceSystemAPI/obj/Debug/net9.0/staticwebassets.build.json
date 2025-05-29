@@ -1,12 +1,20 @@
 {
   "Version": 1,
-  "Hash": "SlECXaPZXT+6Fu4DvZFyh1/7XfrrXiM4h13DjJRFKQc=",
+  "Hash": "eKV7Jj/F1HNuTSso0EjDYaiJG5wTrp//6x65ZGpGOp8=",
   "Source": "AttendanceSystemAPI",
   "BasePath": "_content/AttendanceSystemAPI",
   "Mode": "Default",
   "ManifestType": "Build",
   "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
+  "DiscoveryPatterns": [
+    {
+      "Name": "AttendanceSystemAPI/wwwroot",
+      "Source": "AttendanceSystemAPI",
+      "ContentRoot": "/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/wwwroot/",
+      "BasePath": "_content/AttendanceSystemAPI",
+      "Pattern": "**"
+    }
+  ],
   "Assets": [],
   "Endpoints": []
 }

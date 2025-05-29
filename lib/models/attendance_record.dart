@@ -13,6 +13,8 @@ class AttendanceRecord {
   final String? notes;
   final Duration? workDuration;
   final bool isRemote;
+  final String? checkInImagePath;
+  final String? checkOutImagePath;
 
   AttendanceRecord({
     required this.id,
@@ -29,6 +31,8 @@ class AttendanceRecord {
     this.notes,
     this.workDuration,
     this.isRemote = false,
+    this.checkInImagePath,
+    this.checkOutImagePath,
   });
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
@@ -51,6 +55,8 @@ class AttendanceRecord {
           ? Duration(minutes: json['work_duration']) 
           : null,
       isRemote: json['is_remote'] ?? false,
+      checkInImagePath: json['check_in_image_path'],
+      checkOutImagePath: json['check_out_image_path'],
     );
   }
 
@@ -70,6 +76,8 @@ class AttendanceRecord {
       'notes': notes,
       'work_duration': workDuration?.inMinutes,
       'is_remote': isRemote,
+      'check_in_image_path': checkInImagePath,
+      'check_out_image_path': checkOutImagePath,
     };
   }
 
@@ -115,6 +123,8 @@ class AttendanceRecord {
     String? notes,
     Duration? workDuration,
     bool? isRemote,
+    String? checkInImagePath,
+    String? checkOutImagePath,
   }) {
     return AttendanceRecord(
       id: id ?? this.id,
@@ -131,6 +141,8 @@ class AttendanceRecord {
       notes: notes ?? this.notes,
       workDuration: workDuration ?? this.workDuration,
       isRemote: isRemote ?? this.isRemote,
+      checkInImagePath: checkInImagePath ?? this.checkInImagePath,
+      checkOutImagePath: checkOutImagePath ?? this.checkOutImagePath,
     );
   }
 }

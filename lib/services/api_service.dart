@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
@@ -6,26 +7,16 @@ import 'package:flutter/material.dart';
 import './location_service.dart';
 
 class ApiService {
-  // Dynamic base URL based on platform
+  // Production vs Development configuration
+  static const bool _isProduction = true; // Set to true to use your domain
+  
+  // Dynamic base URL based on environment and platform
   static String get baseUrl {
-    if (kIsWeb) {
-      // For web development
-      return 'http://localhost:5070/api';
-    } else if (defaultTargetPlatform == TargetPlatform.android) {
-      // For Android emulator - 10.0.2.2 maps to host machine's localhost
-      // For real Android device, you'd need your computer's IP address
-      return 'http://10.0.2.2:5070/api';
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      // For iOS simulator
-      return 'http://localhost:5070/api';
-    } else {
-      // Default fallback
-      return 'http://localhost:5070/api';
-    }
+    return 'https://ola-fahim.duckdns.org/api';
   }
   
   // Set to false when you have the backend ready
-  static const bool _useMockData = false;
+  static const bool _useMockData = true;
 
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -378,6 +369,7 @@ class ApiService {
     required String location,
     bool isRemote = false,
     String? notes,
+    File? image,
   }) async {
     if (_useMockData) {
       await Future.delayed(const Duration(seconds: 1));
@@ -402,22 +394,40 @@ class ApiService {
           'notes': notes,
           'work_duration': null,
           'is_remote': isRemote,
+          'check_in_image_path': image != null ? 'https://your-s3-bucket.s3.amazonaws.com/attendance/mock_checkin_image.jpg' : null,
+          'check_out_image_path': null,
         }
       };
     }
 
     try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/attendance/check-in'),
-        headers: headers,
-        body: jsonEncode({
-          'latitude': latitude,
-          'longitude': longitude,
-          'notes': notes,
-        }),
-      );
-
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+      
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/attendance/check-in'));
+      
+      // Add headers
+      request.headers['Authorization'] = 'Bearer $token';
+      
+      // Add form fields
+      request.fields['latitude'] = latitude.toString();
+      request.fields['longitude'] = longitude.toString();
+      if (notes != null && notes.isNotEmpty) {
+        request.fields['notes'] = notes;
+      }
+      
+      // Add image file if provided
+      if (image != null) {
+        var imageFile = await http.MultipartFile.fromPath(
+          'checkInImage',
+          image.path,
+          filename: 'checkin_image.jpg',
+        );
+        request.files.add(imageFile);
+      }
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
       final responseData = jsonDecode(response.body);
       
       if (response.statusCode == 200) {
@@ -447,6 +457,8 @@ class ApiService {
           'is_remote': isRemote,
           'created_at': responseData['createdAt'],
           'date': responseData['date'],
+          'check_in_image_path': responseData['checkInImagePath'],
+          'check_out_image_path': responseData['checkOutImagePath'],
         };
         
         return {
@@ -473,6 +485,7 @@ class ApiService {
     required double longitude,
     required String location,
     String? notes,
+    File? image,
   }) async {
     if (_useMockData) {
       await Future.delayed(const Duration(seconds: 1));
@@ -497,24 +510,42 @@ class ApiService {
           'notes': notes,
           'work_duration': 510, // 8.5 hours in minutes
           'is_remote': true,
+          'check_in_image_path': 'https://your-s3-bucket.s3.amazonaws.com/attendance/mock_checkin_image.jpg',
+          'check_out_image_path': image != null ? 'https://your-s3-bucket.s3.amazonaws.com/attendance/mock_checkout_image.jpg' : null,
         }
       };
     }
 
     try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/attendance/check-out'),
-        headers: headers,
-        body: jsonEncode({
-          'latitude': latitude,
-          'longitude': longitude,
-          'notes': notes,
-        }),
-      );
-
-      final responseData = jsonDecode(response.body);
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
       
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/attendance/check-out'));
+      
+      // Add headers
+      request.headers['Authorization'] = 'Bearer $token';
+      
+      // Add form fields
+      request.fields['latitude'] = latitude.toString();
+      request.fields['longitude'] = longitude.toString();
+      if (notes != null && notes.isNotEmpty) {
+        request.fields['notes'] = notes;
+      }
+      
+      // Add image file if provided
+      if (image != null) {
+        var imageFile = await http.MultipartFile.fromPath(
+          'checkOutImage',
+          image.path,
+          filename: 'checkout_image.jpg',
+        );
+        request.files.add(imageFile);
+      }
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final responseData = jsonDecode(response.body);
+
       if (response.statusCode == 200) {
         // Resolve addresses from coordinates
         String? checkInLocation;
@@ -558,6 +589,8 @@ class ApiService {
           'is_remote': true,
           'created_at': responseData['createdAt'],
           'date': responseData['date'],
+          'check_in_image_path': responseData['checkInImagePath'],
+          'check_out_image_path': responseData['checkOutImagePath'],
         };
         
         return {

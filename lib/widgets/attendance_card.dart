@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
 import '../providers/auth_provider.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/app_colors.dart';
 import '../services/notification_service.dart';
+import '../services/camera_service.dart';
+import '../widgets/attendance_image_widget.dart';
 
 class AttendanceCard extends StatefulWidget {
   const AttendanceCard({super.key});
@@ -34,9 +37,18 @@ class _AttendanceCardState extends State<AttendanceCard> {
       // Request location permission first
       await attendanceProvider.requestLocationPermission();
       
+      // Capture image for check-in
+      File? capturedImage;
+      final shouldCaptureImage = await _showImageCaptureDialog('check-in');
+      
+      if (shouldCaptureImage == true) {
+        capturedImage = await CameraService.captureAttendanceImage(context);
+      }
+      
       final success = await attendanceProvider.checkIn(
         isRemote: true, // Assuming remote work by default
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        image: capturedImage,
       );
 
       if (success) {
@@ -84,8 +96,17 @@ class _AttendanceCardState extends State<AttendanceCard> {
     });
 
     try {
+      // Capture image for check-out
+      File? capturedImage;
+      final shouldCaptureImage = await _showImageCaptureDialog('check-out');
+      
+      if (shouldCaptureImage == true) {
+        capturedImage = await CameraService.captureAttendanceImage(context);
+      }
+      
       final success = await attendanceProvider.checkOut(
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        image: capturedImage,
       );
 
       if (success) {
@@ -123,6 +144,30 @@ class _AttendanceCardState extends State<AttendanceCard> {
         _isProcessing = false;
       });
     }
+  }
+
+  Future<bool?> _showImageCaptureDialog(String action) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Capture Photo'),
+        content: Text('Would you like to take a photo for your $action?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Skip'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Take Photo'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -185,6 +230,14 @@ class _AttendanceCardState extends State<AttendanceCard> {
                 if (todayAttendance != null) ...[
                   _buildTimeDisplay(todayAttendance),
                   const SizedBox(height: 20),
+                  // Show attendance images if available
+                  if (todayAttendance.checkInImagePath != null || todayAttendance.checkOutImagePath != null) ...[
+                    AttendanceImageWidget(
+                      checkInImagePath: todayAttendance.checkInImagePath,
+                      checkOutImagePath: todayAttendance.checkOutImagePath,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ],
                 _buildActionSection(isCheckedIn, isCheckedOut),
               ],

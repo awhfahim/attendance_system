@@ -10,7 +10,7 @@ namespace AttendanceSystemAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // [Authorize]
+    [Authorize]
     public class AttendanceController : ControllerBase
     {
         private readonly AttendanceDbContext _context;
@@ -18,6 +18,21 @@ namespace AttendanceSystemAPI.Controllers
         public AttendanceController(AttendanceDbContext context)
         {
             _context = context;
+            
+            // Try to ensure images directory exists, but don't fail if we can't create it
+            try
+            {
+                var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "attendance");
+                if (!Directory.Exists(imagesPath))
+                {
+                    Directory.CreateDirectory(imagesPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the controller initialization
+                Console.WriteLine($"Warning: Could not create images directory: {ex.Message}");
+            }
         }
 
         private string GetCurrentUserId()
@@ -25,8 +40,81 @@ namespace AttendanceSystemAPI.Controllers
             return User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
         }
 
+        private async Task<string?> SaveAttendanceImage(string? base64Image, string imageType)
+        {
+            if (string.IsNullOrEmpty(base64Image))
+                return null;
+
+            try
+            {
+                // Remove data:image/jpeg;base64, prefix if present
+                var base64Data = base64Image.Contains(',') ? base64Image.Split(',')[1] : base64Image;
+                var imageBytes = Convert.FromBase64String(base64Data);
+                
+                var fileName = $"{imageType}_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}.jpg";
+                var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "attendance");
+                
+                // Ensure the directory exists before writing
+                if (!Directory.Exists(imagesPath))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(imagesPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Warning: Could not create images directory: {ex.Message}");
+                        // If we can't create the directory, don't save the image
+                        return null;
+                    }
+                }
+                
+                var filePath = Path.Combine(imagesPath, fileName);
+                await System.IO.File.WriteAllBytesAsync(filePath, imageBytes);
+                
+                // Return relative path for storing in database
+                return $"/images/attendance/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                // Log the error in production
+                Console.WriteLine($"Error saving attendance image: {ex.Message}");
+                return null;
+            }
+        }
+
+        private async Task<string?> UploadImageToS3(IFormFile? imageFile, string imageType)
+        {
+            if (imageFile == null || imageFile.Length == 0)
+                return null;
+
+            try
+            {
+                // TODO: Implement S3 upload logic here
+                // For now, this is a placeholder that you can implement
+                
+                // Example of what you might do:
+                // 1. Generate unique filename
+                var fileName = $"{imageType}_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}.jpg";
+                
+                // 2. Upload to S3 bucket (you'll implement this)
+                // var s3Url = await _s3Service.UploadFileAsync(imageFile, fileName);
+                
+                // 3. Return S3 URL
+                // return s3Url;
+                
+                // Placeholder return - replace with actual S3 URL
+                return $"https://your-s3-bucket.s3.amazonaws.com/attendance/{fileName}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error uploading image to S3: {ex.Message}");
+                return null;
+            }
+        }
+
         [HttpPost("check-in")]
-        public async Task<ActionResult<AttendanceDto>> CheckIn([FromBody] CheckInDto checkInDto)
+        public async Task<ActionResult<AttendanceDto>> CheckIn([FromForm] CheckInDto checkInDto, [FromForm] IFormFile? checkInImage)
         {
             try
             {
@@ -44,12 +132,16 @@ namespace AttendanceSystemAPI.Controllers
                     return BadRequest(new { message = "You have already checked in today" });
                 }
 
+                // Upload check-in image to S3 if provided
+                var checkInImagePath = await UploadImageToS3(checkInImage, $"checkin_{userId}");
+
                 var attendanceRecord = new AttendanceRecord
                 {
                     UserId = userId,
                     CheckInTime = DateTime.UtcNow,
                     CheckInLatitude = checkInDto.Latitude,
                     CheckInLongitude = checkInDto.Longitude,
+                    CheckInImagePath = checkInImagePath,
                     Notes = checkInDto.Notes
                 };
 
@@ -66,6 +158,8 @@ namespace AttendanceSystemAPI.Controllers
                     CheckInLongitude = attendanceRecord.CheckInLongitude,
                     CheckOutLatitude = attendanceRecord.CheckOutLatitude,
                     CheckOutLongitude = attendanceRecord.CheckOutLongitude,
+                    CheckInImagePath = attendanceRecord.CheckInImagePath,
+                    CheckOutImagePath = attendanceRecord.CheckOutImagePath,
                     Notes = attendanceRecord.Notes,
                     CreatedAt = attendanceRecord.CreatedAt,
                     Date = attendanceRecord.Date,
@@ -78,10 +172,8 @@ namespace AttendanceSystemAPI.Controllers
             {
                 return StatusCode(500, new { message = $"Check-in failed: {ex.Message}" });
             }
-        }
-
-        [HttpPost("check-out")]
-        public async Task<ActionResult<AttendanceDto>> CheckOut([FromBody] CheckOutDto checkOutDto)
+        }        [HttpPost("check-out")]
+        public async Task<ActionResult<AttendanceDto>> CheckOut([FromForm] CheckOutDto checkOutDto, [FromForm] IFormFile? checkOutImage)
         {
             try
             {
@@ -100,10 +192,14 @@ namespace AttendanceSystemAPI.Controllers
                     return BadRequest(new { message = "No check-in record found for today or already checked out" });
                 }
 
+                // Upload check-out image to S3 if provided
+                var checkOutImagePath = await UploadImageToS3(checkOutImage, $"checkout_{userId}");
+
                 attendanceRecord.CheckOutTime = DateTime.UtcNow;
                 attendanceRecord.CheckOutLatitude = checkOutDto.Latitude;
                 attendanceRecord.CheckOutLongitude = checkOutDto.Longitude;
-                
+                attendanceRecord.CheckOutImagePath = checkOutImagePath;
+
                 if (!string.IsNullOrEmpty(checkOutDto.Notes))
                 {
                     attendanceRecord.Notes = string.IsNullOrEmpty(attendanceRecord.Notes) 
@@ -123,6 +219,8 @@ namespace AttendanceSystemAPI.Controllers
                     CheckInLongitude = attendanceRecord.CheckInLongitude,
                     CheckOutLatitude = attendanceRecord.CheckOutLatitude,
                     CheckOutLongitude = attendanceRecord.CheckOutLongitude,
+                    CheckInImagePath = attendanceRecord.CheckInImagePath,
+                    CheckOutImagePath = attendanceRecord.CheckOutImagePath,
                     Notes = attendanceRecord.Notes,
                     CreatedAt = attendanceRecord.CreatedAt,
                     Date = attendanceRecord.Date,
@@ -165,6 +263,8 @@ namespace AttendanceSystemAPI.Controllers
                     CheckInLongitude = attendanceRecord.CheckInLongitude,
                     CheckOutLatitude = attendanceRecord.CheckOutLatitude,
                     CheckOutLongitude = attendanceRecord.CheckOutLongitude,
+                    CheckInImagePath = attendanceRecord.CheckInImagePath,
+                    CheckOutImagePath = attendanceRecord.CheckOutImagePath,
                     Notes = attendanceRecord.Notes,
                     CreatedAt = attendanceRecord.CreatedAt,
                     Date = attendanceRecord.Date,
@@ -218,6 +318,8 @@ namespace AttendanceSystemAPI.Controllers
                     CheckInLongitude = a.CheckInLongitude,
                     CheckOutLatitude = a.CheckOutLatitude,
                     CheckOutLongitude = a.CheckOutLongitude,
+                    CheckInImagePath = a.CheckInImagePath,
+                    CheckOutImagePath = a.CheckOutImagePath,
                     Notes = a.Notes,
                     CreatedAt = a.CreatedAt,
                     Date = a.Date,
@@ -293,6 +395,8 @@ namespace AttendanceSystemAPI.Controllers
                     CheckInLongitude = a.CheckInLongitude,
                     CheckOutLatitude = a.CheckOutLatitude,
                     CheckOutLongitude = a.CheckOutLongitude,
+                    CheckInImagePath = a.CheckInImagePath,
+                    CheckOutImagePath = a.CheckOutImagePath,
                     Notes = a.Notes,
                     CreatedAt = a.CreatedAt,
                     Date = a.Date,

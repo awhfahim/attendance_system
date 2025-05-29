@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/attendance_provider.dart';
 import '../models/attendance_record.dart';
 import '../utils/app_colors.dart';
+import '../widgets/attendance_image_widget.dart';
 
 class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
@@ -333,6 +334,14 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                     ),
                   ),
                 ],
+              ),
+            ],
+            // Display attendance images
+            if (record.checkInImagePath != null || record.checkOutImagePath != null) ...[
+              const SizedBox(height: 12),
+              AttendanceImageWidget(
+                checkInImagePath: record.checkInImagePath,
+                checkOutImagePath: record.checkOutImagePath,
               ),
             ],
             if (record.notes != null && record.notes!.isNotEmpty) ...[

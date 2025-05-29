@@ -66,6 +66,8 @@ namespace AttendanceSystemAPI.DTOs
         public double? CheckOutLatitude { get; set; }
         public double? CheckOutLongitude { get; set; }
         public string? Notes { get; set; }
+        public string? CheckInImagePath { get; set; }
+        public string? CheckOutImagePath { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime Date { get; set; }
         public double? TotalHours { get; set; }
@@ -150,3 +152,4 @@ namespace AttendanceSystemAPI.DTOs
         public bool IsAdmin { get; set; } = false;
     }
 }
+
