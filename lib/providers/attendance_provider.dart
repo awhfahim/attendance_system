@@ -102,7 +102,7 @@ class AttendanceProvider with ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _setError('Check-in failed. Please try again.');
+      _setError(e.toString());
       debugPrint('Error during check-in: $e');
       _setLoading(false);
       return false;

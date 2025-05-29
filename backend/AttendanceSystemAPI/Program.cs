@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using AttendanceSystemAPI.Data;
+using AttendanceSystemAPI.Options;
 using AttendanceSystemAPI.Services;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Minio;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,6 +82,41 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
+
+builder.Services.AddOptions<MinioOptions>(MinioOptions.SectionName)
+    .BindConfiguration(MinioOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+        
+var configuration = builder.Configuration;
+var minioAccessKey = configuration.GetRequiredSection(MinioOptions.SectionName)
+    .GetValue<string>(nameof(MinioOptions.AccessKey));
+var minioSecretKey = configuration.GetRequiredSection(MinioOptions.SectionName)
+    .GetValue<string>(nameof(MinioOptions.SecretKey));
+var endpoint = configuration.GetRequiredSection(MinioOptions.SectionName)
+    .GetValue<string>(nameof(MinioOptions.Endpoint));
+        
+ArgumentNullException.ThrowIfNull(minioAccessKey);
+ArgumentNullException.ThrowIfNull(minioSecretKey);
+ArgumentNullException.ThrowIfNull(endpoint);
+
+if (configuration.GetValue<bool>("DOTNET_RUNNING_IN_CONTAINER"))
+{
+    var dockerEndpoint = configuration.GetRequiredSection(MinioOptions.SectionName)
+        .GetValue<string>(nameof(MinioOptions.DockerEndpoint));
+            
+    endpoint = dockerEndpoint;
+}
+        
+builder.Services.AddMinio(options =>
+{
+    options.WithEndpoint(endpoint)
+        .WithCredentials(minioAccessKey, minioSecretKey)
+        .WithSSL();
+});
+        
+builder.Services.TryAddScoped<IFileStorageService, MinioService>();
+builder.Services.TryAddSingleton<IExternalMinioService, ExternalMinioService>();
 
 var app = builder.Build();
 

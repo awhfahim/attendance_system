@@ -475,7 +475,7 @@ class ApiService {
       print('Check-in API Error: $e'); // Add debugging
       return {
         'success': false,
-        'message': 'Check-in failed. Please try again.'
+        'message': '$e'
       };
     }
   }

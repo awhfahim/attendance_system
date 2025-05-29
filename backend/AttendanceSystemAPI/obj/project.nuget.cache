@@ -1,10 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "rKYxwKHwXb0=",
+  "dgSpecHash": "0TFY6OteG4A=",
   "success": true,
   "projectFilePath": "/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/AttendanceSystemAPI.csproj",
   "expectedPackageFiles": [
     "/home/fahim/.nuget/packages/bcrypt.net-next/4.0.3/bcrypt.net-next.4.0.3.nupkg.sha512",
+    "/home/fahim/.nuget/packages/communitytoolkit.highperformance/8.3.0/communitytoolkit.highperformance.8.3.0.nupkg.sha512",
     "/home/fahim/.nuget/packages/microsoft.aspnetcore.authentication.jwtbearer/9.0.5/microsoft.aspnetcore.authentication.jwtbearer.9.0.5.nupkg.sha512",
     "/home/fahim/.nuget/packages/microsoft.aspnetcore.openapi/9.0.5/microsoft.aspnetcore.openapi.9.0.5.nupkg.sha512",
     "/home/fahim/.nuget/packages/microsoft.entityframeworkcore/9.0.5/microsoft.entityframeworkcore.9.0.5.nupkg.sha512",
@@ -27,11 +28,14 @@
     "/home/fahim/.nuget/packages/microsoft.identitymodel.protocols.openidconnect/8.0.1/microsoft.identitymodel.protocols.openidconnect.8.0.1.nupkg.sha512",
     "/home/fahim/.nuget/packages/microsoft.identitymodel.tokens/8.11.0/microsoft.identitymodel.tokens.8.11.0.nupkg.sha512",
     "/home/fahim/.nuget/packages/microsoft.openapi/1.6.23/microsoft.openapi.1.6.23.nupkg.sha512",
+    "/home/fahim/.nuget/packages/minio/6.0.4/minio.6.0.4.nupkg.sha512",
     "/home/fahim/.nuget/packages/swashbuckle.aspnetcore/8.1.2/swashbuckle.aspnetcore.8.1.2.nupkg.sha512",
     "/home/fahim/.nuget/packages/swashbuckle.aspnetcore.swagger/8.1.2/swashbuckle.aspnetcore.swagger.8.1.2.nupkg.sha512",
     "/home/fahim/.nuget/packages/swashbuckle.aspnetcore.swaggergen/8.1.2/swashbuckle.aspnetcore.swaggergen.8.1.2.nupkg.sha512",
     "/home/fahim/.nuget/packages/swashbuckle.aspnetcore.swaggerui/8.1.2/swashbuckle.aspnetcore.swaggerui.8.1.2.nupkg.sha512",
-    "/home/fahim/.nuget/packages/system.identitymodel.tokens.jwt/8.11.0/system.identitymodel.tokens.jwt.8.11.0.nupkg.sha512"
+    "/home/fahim/.nuget/packages/system.identitymodel.tokens.jwt/8.11.0/system.identitymodel.tokens.jwt.8.11.0.nupkg.sha512",
+    "/home/fahim/.nuget/packages/system.io.hashing/8.0.0/system.io.hashing.8.0.0.nupkg.sha512",
+    "/home/fahim/.nuget/packages/system.reactive/6.0.1/system.reactive.6.0.1.nupkg.sha512"
   ],
   "logs": []
 }

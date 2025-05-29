@@ -5,6 +5,9 @@ using AttendanceSystemAPI.Data;
 using AttendanceSystemAPI.DTOs;
 using AttendanceSystemAPI.Models;
 using System.Security.Claims;
+using AttendanceSystemAPI.Options;
+using AttendanceSystemAPI.Services;
+using Microsoft.Extensions.Options;
 
 namespace AttendanceSystemAPI.Controllers
 {
@@ -14,11 +17,16 @@ namespace AttendanceSystemAPI.Controllers
     public class AttendanceController : ControllerBase
     {
         private readonly AttendanceDbContext _context;
+        private readonly IFileStorageService _fileStorageService;
+        private readonly MinioOptions _minioOptions;
 
-        public AttendanceController(AttendanceDbContext context)
+        public AttendanceController(AttendanceDbContext context, IFileStorageService fileStorageService, 
+            IOptions<MinioOptions> minioOptions)
         {
             _context = context;
-            
+            _fileStorageService = fileStorageService;
+            _minioOptions = minioOptions.Value;
+
             // Try to ensure images directory exists, but don't fail if we can't create it
             try
             {
@@ -50,10 +58,10 @@ namespace AttendanceSystemAPI.Controllers
                 // Remove data:image/jpeg;base64, prefix if present
                 var base64Data = base64Image.Contains(',') ? base64Image.Split(',')[1] : base64Image;
                 var imageBytes = Convert.FromBase64String(base64Data);
-                
+
                 var fileName = $"{imageType}_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}.jpg";
                 var imagesPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "attendance");
-                
+
                 // Ensure the directory exists before writing
                 if (!Directory.Exists(imagesPath))
                 {
@@ -68,10 +76,10 @@ namespace AttendanceSystemAPI.Controllers
                         return null;
                     }
                 }
-                
+
                 var filePath = Path.Combine(imagesPath, fileName);
                 await System.IO.File.WriteAllBytesAsync(filePath, imageBytes);
-                
+
                 // Return relative path for storing in database
                 return $"/images/attendance/{fileName}";
             }
@@ -89,22 +97,19 @@ namespace AttendanceSystemAPI.Controllers
                 return null;
 
             try
-            {
-                // TODO: Implement S3 upload logic here
-                // For now, this is a placeholder that you can implement
+            {   
                 
-                // Example of what you might do:
-                // 1. Generate unique filename
-                var fileName = $"{imageType}_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}.jpg";
+                var fileExtension = Path.GetExtension(imageFile.FileName);
+                string uniqueFileName = $"{Guid.NewGuid():N}{fileExtension}";
+
+                await using var stream = imageFile.OpenReadStream();
+                var contentType = imageFile.ContentType;
+
+                var isUploaded =
+                    await _fileStorageService.UploadFileAsync("bhsoftbucket", uniqueFileName,
+                        stream, contentType);
                 
-                // 2. Upload to S3 bucket (you'll implement this)
-                // var s3Url = await _s3Service.UploadFileAsync(imageFile, fileName);
-                
-                // 3. Return S3 URL
-                // return s3Url;
-                
-                // Placeholder return - replace with actual S3 URL
-                return $"https://your-s3-bucket.s3.amazonaws.com/attendance/{fileName}";
+                return $"https://{_minioOptions.ExternalEndpoint}/bhsoftbucket/{uniqueFileName}";
             }
             catch (Exception ex)
             {
@@ -114,7 +119,8 @@ namespace AttendanceSystemAPI.Controllers
         }
 
         [HttpPost("check-in")]
-        public async Task<ActionResult<AttendanceDto>> CheckIn([FromForm] CheckInDto checkInDto, [FromForm] IFormFile? checkInImage)
+        public async Task<ActionResult<AttendanceDto>> CheckIn([FromForm] CheckInDto checkInDto,
+            [FromForm] IFormFile? checkInImage)
         {
             try
             {
@@ -123,9 +129,9 @@ namespace AttendanceSystemAPI.Controllers
 
                 // Check if user already checked in today
                 var existingRecord = await _context.AttendanceRecords
-                    .FirstOrDefaultAsync(a => a.UserId == userId && 
-                        a.CheckInTime.HasValue && 
-                        a.CheckInTime.Value.Date == today);
+                    .FirstOrDefaultAsync(a => a.UserId == userId &&
+                                              a.CheckInTime.HasValue &&
+                                              a.CheckInTime.Value.Date == today);
 
                 if (existingRecord != null)
                 {
@@ -172,8 +178,11 @@ namespace AttendanceSystemAPI.Controllers
             {
                 return StatusCode(500, new { message = $"Check-in failed: {ex.Message}" });
             }
-        }        [HttpPost("check-out")]
-        public async Task<ActionResult<AttendanceDto>> CheckOut([FromForm] CheckOutDto checkOutDto, [FromForm] IFormFile? checkOutImage)
+        }
+
+        [HttpPost("check-out")]
+        public async Task<ActionResult<AttendanceDto>> CheckOut([FromForm] CheckOutDto checkOutDto,
+            [FromForm] IFormFile? checkOutImage)
         {
             try
             {
@@ -182,10 +191,10 @@ namespace AttendanceSystemAPI.Controllers
 
                 // Find today's attendance record
                 var attendanceRecord = await _context.AttendanceRecords
-                    .FirstOrDefaultAsync(a => a.UserId == userId && 
-                        a.CheckInTime.HasValue && 
-                        a.CheckInTime.Value.Date == today &&
-                        !a.CheckOutTime.HasValue);
+                    .FirstOrDefaultAsync(a => a.UserId == userId &&
+                                              a.CheckInTime.HasValue &&
+                                              a.CheckInTime.Value.Date == today &&
+                                              !a.CheckOutTime.HasValue);
 
                 if (attendanceRecord == null)
                 {
@@ -202,8 +211,8 @@ namespace AttendanceSystemAPI.Controllers
 
                 if (!string.IsNullOrEmpty(checkOutDto.Notes))
                 {
-                    attendanceRecord.Notes = string.IsNullOrEmpty(attendanceRecord.Notes) 
-                        ? checkOutDto.Notes 
+                    attendanceRecord.Notes = string.IsNullOrEmpty(attendanceRecord.Notes)
+                        ? checkOutDto.Notes
                         : $"{attendanceRecord.Notes}; {checkOutDto.Notes}";
                 }
 
@@ -244,9 +253,9 @@ namespace AttendanceSystemAPI.Controllers
                 var today = DateTime.UtcNow.Date;
 
                 var attendanceRecord = await _context.AttendanceRecords
-                    .FirstOrDefaultAsync(a => a.UserId == userId && 
-                        a.CheckInTime.HasValue && 
-                        a.CheckInTime.Value.Date == today);
+                    .FirstOrDefaultAsync(a => a.UserId == userId &&
+                                              a.CheckInTime.HasValue &&
+                                              a.CheckInTime.Value.Date == today);
 
                 if (attendanceRecord == null)
                 {
@@ -281,7 +290,7 @@ namespace AttendanceSystemAPI.Controllers
 
         [HttpGet("history")]
         public async Task<ActionResult<List<AttendanceDto>>> GetAttendanceHistory(
-            [FromQuery] int page = 1, 
+            [FromQuery] int page = 1,
             [FromQuery] int limit = 10,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null)
@@ -335,7 +344,8 @@ namespace AttendanceSystemAPI.Controllers
         }
 
         [HttpGet("monthly-stats")]
-        public async Task<ActionResult<MonthlyStatsDto>> GetMonthlyStats([FromQuery] int? year = null, [FromQuery] int? month = null)
+        public async Task<ActionResult<MonthlyStatsDto>> GetMonthlyStats([FromQuery] int? year = null,
+            [FromQuery] int? month = null)
         {
             try
             {
@@ -345,10 +355,10 @@ namespace AttendanceSystemAPI.Controllers
                 var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
 
                 var attendanceRecords = await _context.AttendanceRecords
-                    .Where(a => a.UserId == userId && 
-                        a.CheckInTime.HasValue &&
-                        a.CheckInTime.Value.Date >= startOfMonth &&
-                        a.CheckInTime.Value.Date <= endOfMonth)
+                    .Where(a => a.UserId == userId &&
+                                a.CheckInTime.HasValue &&
+                                a.CheckInTime.Value.Date >= startOfMonth &&
+                                a.CheckInTime.Value.Date <= endOfMonth)
                     .ToListAsync();
 
                 var totalDays = DateTime.DaysInMonth(targetDate.Year, targetDate.Month);
