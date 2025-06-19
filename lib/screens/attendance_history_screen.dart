@@ -168,19 +168,22 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   }
 
   Widget _buildAttendanceCard(AttendanceRecord record) {
-    final checkInTime = DateFormat('HH:mm').format(record.checkInTime);
+    final checkInTimeLocal = record.checkInTime.toLocal();
+    final checkInTime = DateFormat('hh:mm a').format(checkInTimeLocal);
     final checkOutTime = record.checkOutTime != null 
-        ? DateFormat('HH:mm').format(record.checkOutTime!)
-        : 'Not checked out';
-    final date = DateFormat('MMM d, yyyy').format(record.checkInTime);
-    final dayOfWeek = DateFormat('EEEE').format(record.checkInTime);
+      ? DateFormat('hh:mm a').format(record.checkOutTime!.toLocal())
+      : 'Not checked out';
+    final date = DateFormat('MMM d, yyyy').format(checkInTimeLocal);
+    final dayOfWeek = DateFormat('EEEE').format(checkInTimeLocal);
 
+    // Determine late status based on local time
+    bool isLate = checkInTimeLocal.hour > 9 || (checkInTimeLocal.hour == 9 && checkInTimeLocal.minute > 0);
     Color statusColor;
     IconData statusIcon;
     switch (record.status) {
       case 'present':
-        statusColor = AppColors.success;
-        statusIcon = Icons.check_circle;
+        statusColor = isLate ? AppColors.warning : AppColors.success;
+        statusIcon = isLate ? Icons.schedule : Icons.check_circle;
         break;
       case 'late':
         statusColor = AppColors.warning;
@@ -437,6 +440,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   }
 
   Widget _buildLocationRow(String label, String location, IconData icon, Color color) {
+    // If location is a fallback like 'Remote (lat, lng)', show 'Remote Location'
+    String displayLocation = location;
+    final remotePattern = RegExp(r'^Remote \([-+]?\d*\.?\d+, [-+]?\d*\.?\d+\) $');
+    if (remotePattern.hasMatch(location)) {
+      displayLocation = 'Remote Location';
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -458,7 +467,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                 ),
               ),
               Text(
-                location,
+                displayLocation,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),

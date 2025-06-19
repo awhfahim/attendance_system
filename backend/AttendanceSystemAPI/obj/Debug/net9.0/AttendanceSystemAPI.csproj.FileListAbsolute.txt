@@ -56,3 +56,7 @@
 /home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/obj/Debug/net9.0/ref/AttendanceSystemAPI.dll
 /home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/bin/Debug/net9.0/AttendanceSystemAPI.staticwebassets.runtime.json
 /home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/obj/Debug/net9.0/AttendanceSystemAPI.sourcelink.json
+/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/bin/Debug/net9.0/CommunityToolkit.HighPerformance.dll
+/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/bin/Debug/net9.0/Minio.dll
+/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/bin/Debug/net9.0/System.IO.Hashing.dll
+/home/fahim/official-projects/attendance_system/backend/AttendanceSystemAPI/bin/Debug/net9.0/System.Reactive.dll

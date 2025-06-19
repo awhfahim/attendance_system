@@ -52,8 +52,9 @@ class _AttendanceCardState extends State<AttendanceCard> {
       );
 
       if (success) {
+        final localTime = DateTime.now().toLocal();
         await NotificationService.showAttendanceConfirmation(
-          'Successfully checked in at ${DateFormat('HH:mm').format(DateTime.now())}',
+          'Successfully checked in at \\${DateFormat('hh:mm a').format(localTime)}',
         );
         _notesController.clear();
         if (mounted) {
@@ -110,8 +111,9 @@ class _AttendanceCardState extends State<AttendanceCard> {
       );
 
       if (success) {
+        final localTime = DateTime.now().toLocal();
         await NotificationService.showAttendanceConfirmation(
-          'Successfully checked out at ${DateFormat('HH:mm').format(DateTime.now())}',
+          'Successfully checked out at \\${DateFormat('hh:mm a').format(localTime)}',
         );
         _notesController.clear();
         if (mounted) {
@@ -249,9 +251,10 @@ class _AttendanceCardState extends State<AttendanceCard> {
   }
 
   Widget _buildTimeDisplay(attendance) {
-    final checkInTime = DateFormat('HH:mm').format(attendance.checkInTime);
+    // Use toLocal() only, do NOT add extra hours
+    final checkInTime = DateFormat('hh:mm a').format(attendance.checkInTime.toLocal());
     final checkOutTime = attendance.checkOutTime != null
-        ? DateFormat('HH:mm').format(attendance.checkOutTime!)
+        ? DateFormat('hh:mm a').format(attendance.checkOutTime!.toLocal())
         : '--:--';
     
     return Row(

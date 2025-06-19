@@ -42,6 +42,7 @@ namespace AttendanceSystemAPI.DTOs
         public double Longitude { get; set; }
         
         public string? Notes { get; set; }
+        public IFormFile? CheckInImage { get; set; }
     }
     
     public class CheckOutDto
@@ -53,6 +54,7 @@ namespace AttendanceSystemAPI.DTOs
         public double Longitude { get; set; }
         
         public string? Notes { get; set; }
+        public IFormFile? CheckOutImage { get; set; }
     }
     
     public class AttendanceDto

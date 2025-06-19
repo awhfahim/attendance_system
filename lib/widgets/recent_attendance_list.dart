@@ -99,16 +99,14 @@ class _AttendanceListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM dd, yyyy');
-    final timeFormat = DateFormat('HH:mm');
+    final timeFormat = DateFormat('hh:mm a');
     
     final isPresent = record.checkInTime != null;
-    final isLate = record.checkInTime != null && 
-                   record.checkInTime!.hour > 9; // Assuming 9 AM is on time
-    
+    final checkInTimeLocal = record.checkInTime?.toLocal();
+    final isLate = checkInTimeLocal != null && (checkInTimeLocal.hour > 9 || (checkInTimeLocal.hour == 9 && checkInTimeLocal.minute > 0));
     Color statusColor;
     IconData statusIcon;
     String statusText;
-    
     if (!isPresent) {
       statusColor = AppColors.error;
       statusIcon = Icons.cancel;
@@ -139,7 +137,7 @@ class _AttendanceListTile extends StatelessWidget {
         ),
       ),
       title: Text(
-        dateFormat.format(record.date),
+        dateFormat.format(record.date.toLocal()),
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
         ),
@@ -158,7 +156,7 @@ class _AttendanceListTile extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 record.checkInTime != null 
-                    ? 'In: ${timeFormat.format(record.checkInTime!)}'
+                    ? 'In: ${timeFormat.format(record.checkInTime!.toLocal())}'
                     : 'Not checked in',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -171,7 +169,7 @@ class _AttendanceListTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'Out: ${timeFormat.format(record.checkOutTime!)}',
+                  'Out: ${timeFormat.format(record.checkOutTime!.toLocal())}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

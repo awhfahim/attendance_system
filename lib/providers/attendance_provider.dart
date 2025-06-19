@@ -193,9 +193,10 @@ class AttendanceProvider with ChangeNotifier {
       if (record.checkInTime != null) {
         daysPresent++;
         
-        // Check if late (after 9 AM)
-        if (record.checkInTime!.hour > 9 || 
-            (record.checkInTime!.hour == 9 && record.checkInTime!.minute > 0)) {
+        // Check if late (after 9 AM, LOCAL TIME)
+        final checkInLocal = record.checkInTime!.toLocal();
+        if (checkInLocal.hour > 9 || 
+            (checkInLocal.hour == 9 && checkInLocal.minute > 0)) {
           lateDays++;
         }
         

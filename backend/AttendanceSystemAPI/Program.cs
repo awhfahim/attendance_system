@@ -83,7 +83,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddOptions<MinioOptions>(MinioOptions.SectionName)
+builder.Services.AddOptions<MinioOptions>()
     .BindConfiguration(MinioOptions.SectionName)
     .ValidateDataAnnotations()
     .ValidateOnStart();

@@ -119,8 +119,7 @@ namespace AttendanceSystemAPI.Controllers
         }
 
         [HttpPost("check-in")]
-        public async Task<ActionResult<AttendanceDto>> CheckIn([FromForm] CheckInDto checkInDto,
-            [FromForm] IFormFile? checkInImage)
+        public async Task<ActionResult<AttendanceDto>> CheckIn([FromForm] CheckInDto checkInDto)
         {
             try
             {
@@ -139,12 +138,12 @@ namespace AttendanceSystemAPI.Controllers
                 }
 
                 // Upload check-in image to S3 if provided
-                var checkInImagePath = await UploadImageToS3(checkInImage, $"checkin_{userId}");
+                var checkInImagePath = await UploadImageToS3(checkInDto.CheckInImage, $"checkin_{userId}");
 
                 var attendanceRecord = new AttendanceRecord
                 {
                     UserId = userId,
-                    CheckInTime = DateTime.UtcNow,
+                    CheckInTime = DateTime.Now,
                     CheckInLatitude = checkInDto.Latitude,
                     CheckInLongitude = checkInDto.Longitude,
                     CheckInImagePath = checkInImagePath,
@@ -181,8 +180,7 @@ namespace AttendanceSystemAPI.Controllers
         }
 
         [HttpPost("check-out")]
-        public async Task<ActionResult<AttendanceDto>> CheckOut([FromForm] CheckOutDto checkOutDto,
-            [FromForm] IFormFile? checkOutImage)
+        public async Task<ActionResult<AttendanceDto>> CheckOut([FromForm] CheckOutDto checkOutDto)
         {
             try
             {
@@ -202,9 +200,9 @@ namespace AttendanceSystemAPI.Controllers
                 }
 
                 // Upload check-out image to S3 if provided
-                var checkOutImagePath = await UploadImageToS3(checkOutImage, $"checkout_{userId}");
+                var checkOutImagePath = await UploadImageToS3(checkOutDto.CheckOutImage, $"checkout_{userId}");
 
-                attendanceRecord.CheckOutTime = DateTime.UtcNow;
+                attendanceRecord.CheckOutTime = DateTime.Now;
                 attendanceRecord.CheckOutLatitude = checkOutDto.Latitude;
                 attendanceRecord.CheckOutLongitude = checkOutDto.Longitude;
                 attendanceRecord.CheckOutImagePath = checkOutImagePath;
