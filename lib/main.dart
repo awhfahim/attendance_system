@@ -8,6 +8,7 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'services/notification_service.dart';
 import 'utils/app_colors.dart';
+import 'screens/attendance_history_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -47,8 +48,10 @@ class AttendanceApp extends StatelessWidget {
         routes: {
           '/login': (context) => const LoginScreen(),
           '/dashboard': (context) => const DashboardScreen(),
+          '/attendance-history': (context) => const AttendanceHistoryScreen(),
         },
       ),
     );
   }
 }
+  

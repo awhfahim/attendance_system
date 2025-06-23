@@ -111,12 +111,12 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateProfile({
+  Future<bool> updateProfile({
     String? name,
     String? phone,
     String? profileImage,
   }) async {
-    if (_user == null) return;
+    if (_user == null) return false;
 
     _setLoading(true);
     _clearError();
@@ -136,14 +136,18 @@ class AuthProvider with ChangeNotifier {
         );
         await _saveUserData();
         notifyListeners();
+        _setLoading(false);
+        return true;
       } else {
         _setError(response['message'] ?? 'Update failed');
+        _setLoading(false);
+        return false;
       }
     } catch (e) {
       _setError('Network error. Please try again.');
+      _setLoading(false);
+      return false;
     }
-
-    _setLoading(false);
   }
 
   Future<void> _saveUserData() async {

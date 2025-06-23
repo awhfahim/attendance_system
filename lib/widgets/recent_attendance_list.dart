@@ -146,31 +146,35 @@ class _AttendanceListTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          Row(
+          // Check-in and check-out times in separate rows
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.login,
-                size: 16,
-                color: Colors.grey[600],
+              // Check-in time
+              Row(
+                children: [
+                  Icon(Icons.login, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    record.checkInTime != null 
+                        ? 'In: ${timeFormat.format(record.checkInTime!.toLocal())}'
+                        : 'Not checked in',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              Text(
-                record.checkInTime != null 
-                    ? 'In: ${timeFormat.format(record.checkInTime!.toLocal())}'
-                    : 'Not checked in',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              // Check-out time (if available)
               if (record.checkOutTime != null) ...[
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.logout,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Out: ${timeFormat.format(record.checkOutTime!.toLocal())}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(Icons.logout, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Out: ${timeFormat.format(record.checkOutTime!.toLocal())}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               ],
             ],

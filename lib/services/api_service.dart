@@ -629,7 +629,7 @@ class ApiService {
     try {
       final headers = await _getHeaders();
       final response = await http.put(
-        Uri.parse('$baseUrl/users/profile'),
+        Uri.parse('$baseUrl/profile'),
         headers: headers,
         body: jsonEncode({
           'name': name,
@@ -641,7 +641,12 @@ class ApiService {
       final responseData = jsonDecode(response.body);
       
       if (response.statusCode == 200) {
-        return responseData;
+        // Backend returns UserDto directly on success
+        return {
+          'success': true,
+          'message': 'Profile updated successfully',
+          'user': responseData,
+        };
       } else {
         return {
           'success': false,
