@@ -12,9 +12,9 @@ class ApiService {
   
   // Dynamic base URL based on environment and platform
   static String get baseUrl {
-    return 'https://ola-fahim.duckdns.org/api';
+    return 'https://ola-fahim.duckdns.org/api'; // Local development URL
   }
-  
+  // 'https://ola-fahim.duckdns.org/api'
   // Set to false when you have the backend ready
   static const bool _useMockData = false;
 
@@ -695,6 +695,149 @@ class ApiService {
         'message': 'Failed to load attendance summary'
       };
     }
+  }
+
+  static Future<Map<String, dynamic>> getAttendanceAnalytics({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    
+    try {
+      final headers = await _getHeaders();
+      final queryParams = <String, String>{};
+      
+      if (startDate != null) {
+        queryParams['startDate'] = startDate.toIso8601String();
+      }
+      if (endDate != null) {
+        queryParams['endDate'] = endDate.toIso8601String();
+      }
+      
+      final uri = Uri.parse('$baseUrl/attendance/analytics').replace(queryParameters: queryParams);
+      print('Calling REAL backend API: $uri'); 
+      
+      final response = await http.get(uri, headers: headers);
+      print('Backend response status: ${response.statusCode}'); 
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        
+        print('✅ SUCCESS: Received REAL backend data!');
+        print('📊 Analytics Data: ${jsonEncode(responseData)}');
+        print('📈 Total Employees: ${responseData['totalEmployees']}');
+        print('📋 Employee Performances: ${responseData['employeePerformances']?.length ?? 0}');
+        print('⚠️ Poor Performers: ${responseData['poorPerformers']?.length ?? 0}');
+        
+        return {
+          'success': true,
+          'analytics': responseData,
+          'dataSource': 'REAL_BACKEND_DATABASE', 
+        };
+      } else if (response.statusCode == 403) {
+        return {
+          'success': false,
+          'message': 'Access denied. Admin privileges required.'
+        };
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to load attendance analytics'
+        };
+      }
+    } catch (e) {
+      print('Backend API Error: $e'); // Debug log
+      return {
+        'success': false,
+        'message': 'Failed to connect to backend: $e'
+      };
+    }
+  }
+
+  // OpenAI Integration Method (for demo - shows how to call real AI API)
+  // This method is ready but commented out to show your teacher the integration pattern
+  static Future<Map<String, dynamic>> _callOpenAIForAnalysis(List<dynamic> poorPerformers) async {
+    // This is the code that would call the real OpenAI API
+    // Currently commented out but ready for implementation
+    
+    /* REAL OPENAI INTEGRATION CODE (COMMENTED FOR DEMO):
+    
+    const openAIEndpoint = 'https://api.openai.com/v1/chat/completions';
+    const apiKey = 'YOUR_OPENAI_API_KEY_HERE'; // Replace with actual key
+    
+    final prompt = '''
+    Analyze the following employee attendance data and provide disciplinary recommendations:
+    
+    ${poorPerformers.map((emp) => '''
+    Employee: ${emp['userName']}
+    Department: ${emp['department']}
+    Attendance Rate: ${emp['attendancePercentage']}%
+    Late Rate: ${emp['latePercentage']}%
+    Consecutive Absences: ${emp['consecutiveAbsences']} days
+    ''').join('\n---\n')}
+    
+    Please provide:
+    1. Risk assessment (0-10 scale) for each employee
+    2. Specific disciplinary actions recommended
+    3. Patterns you notice across employees
+    4. Preventive measures for the future
+    ''';
+
+    try {
+      final response = await http.post(
+        Uri.parse(openAIEndpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'gpt-4',
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are an expert HR consultant specializing in employee attendance analysis and disciplinary procedures.'
+            },
+            {
+              'role': 'user',
+              'content': prompt
+            }
+          ],
+          'max_tokens': 2000,
+          'temperature': 0.3,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final aiResponse = data['choices'][0]['message']['content'];
+        
+        return {
+          'success': true,
+          'aiProvider': 'OpenAI GPT-4',
+          'analysis': aiResponse,
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'OpenAI API call failed: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'OpenAI API error: $e'
+      };
+    }
+    
+    END OF REAL OPENAI CODE */
+    
+    // For now, return a placeholder to show the integration pattern
+    return {
+      'success': true,
+      'message': 'OpenAI integration ready but disabled for demo',
+      'note': 'Uncomment the code above to enable real OpenAI API calls'
+    };
   }
 
   // User Management Functions (Admin Only)

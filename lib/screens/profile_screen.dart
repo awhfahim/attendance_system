@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
+import '../services/ai_service.dart';
 import '../utils/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -210,6 +213,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSettingsSection() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Card(
@@ -219,6 +225,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Column(
           children: [
+            if (user?.isAdmin == true) ...[
+              _buildSettingsTile(
+                Icons.analytics,
+                'Attendance Analytics',
+                'View employee performance reports',
+                () {
+                  _showAttendanceAnalytics();
+                },
+              ),
+              const Divider(height: 1),
+            ],
             _buildSettingsTile(
               Icons.info,
               'About',
@@ -461,6 +478,749 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 foregroundColor: Colors.white,
               ),
               child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAttendanceAnalytics() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('Loading attendance analytics...'),
+              SizedBox(height: 10),
+              Text(
+                'Calling AI model for intelligent analysis...',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      // Get analytics data for the last 30 days
+      final endDate = DateTime.now();
+      final startDate = endDate.subtract(const Duration(days: 30));
+      
+      print('🔍 Requesting analytics from backend...');
+      final response = await ApiService.getAttendanceAnalytics(
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      print('📥 Analytics Response: ${jsonEncode(response)}');
+
+      if (response['success']) {
+        final analytics = response['analytics'];
+        final poorPerformers = List<Map<String, dynamic>>.from(analytics['poorPerformers'] ?? []);
+        
+        print('📊 Analytics received - Total Employees: ${analytics['totalEmployees']}');
+        print('⚠️ Poor Performers: ${poorPerformers.length}');
+        
+        // Call AI service for intelligent analysis using REAL backend data
+        Map<String, dynamic>? aiAnalysis;
+        final employeePerformances = List<Map<String, dynamic>>.from(analytics['employeePerformances'] ?? []);
+        
+        if (employeePerformances.isNotEmpty) {
+          print('🤖 Calling AI service with ${employeePerformances.length} employees...');
+          aiAnalysis = await AIService.analyzeAttendanceWithAI(employeePerformances);
+        } else {
+          print('⚠️ No employee performance data to analyze');
+        }
+        
+        Navigator.of(context).pop(); // Close loading dialog
+        _showAnalyticsResults(analytics, poorPerformers, aiAnalysis);
+      } else {
+        print('❌ Analytics API failed: ${response['message']}');
+        Navigator.of(context).pop(); // Close loading dialog
+        _showErrorDialog(response['message'] ?? 'Failed to load analytics');
+      }
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+      _showErrorDialog('Error loading analytics: $e');
+    }
+  }
+
+  void _showAnalyticsResults(Map<String, dynamic> analytics, List<Map<String, dynamic>> poorPerformers, Map<String, dynamic>? aiAnalysis) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Text('Attendance Analytics'),
+              if (aiAnalysis != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.smart_toy, size: 16, color: Colors.purple.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        'AI Enhanced',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.purple.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 450,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Report Period: ${DateTime.parse(analytics['startDate']).toLocal().toString().split(' ')[0]} to ${DateTime.parse(analytics['endDate']).toLocal().toString().split(' ')[0]}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  Text('Total Employees: ${analytics['totalEmployees']}'),
+                  Text('Average Attendance Rate: ${analytics['averageAttendanceRate']}%'),
+                  Text('Average Late Rate: ${analytics['averageLateRate']}%'),
+                  
+                  // AI Summary section
+                  if (aiAnalysis != null && aiAnalysis['success']) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.psychology, color: Colors.purple.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                'AI Analysis Summary',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            aiAnalysis['summary'] ?? 'No summary available',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Overall Risk Score: ${aiAnalysis['overallRiskScore']}/10'),
+                          Text('AI Provider: ${aiAnalysis['aiProvider']}'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
+                  const SizedBox(height: 20),
+                  const Text(
+                    'EMPLOYEES REQUIRING DISCIPLINARY ACTION:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  
+                  if (poorPerformers.isEmpty)
+                    const Text(
+                      'No employees currently require disciplinary action.',
+                      style: TextStyle(color: Colors.green),
+                    )
+                  else
+                    ...poorPerformers.map((employee) => _buildEmployeeCard(employee, aiAnalysis)).toList(),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+            if (poorPerformers.isNotEmpty)
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _showDetailedReport(poorPerformers, aiAnalysis);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('View AI Report'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEmployeeCard(Map<String, dynamic> employee, Map<String, dynamic>? aiAnalysis) {
+    final attendanceRate = employee['attendancePercentage'] ?? 0.0;
+    final lateRate = employee['latePercentage'] ?? 0.0;
+    final absenceRate = employee['absencePercentage'] ?? 0.0;
+    final consecutiveAbsences = employee['consecutiveAbsences'] ?? 0;
+    
+    // Find AI recommendation for this employee
+    Map<String, dynamic>? aiRecommendation;
+    if (aiAnalysis != null && aiAnalysis['success'] == true) {
+      final recommendations = List<Map<String, dynamic>>.from(aiAnalysis['recommendations'] ?? []);
+      aiRecommendation = recommendations.firstWhere(
+        (rec) => rec['employeeName'] == employee['userName'],
+        orElse: () => <String, dynamic>{},
+      );
+    }
+    
+    Color cardColor = Colors.red.shade50;
+    if (employee['performanceCategory'] == 'Critical') {
+      cardColor = Colors.red.shade100;
+    }
+
+    return Card(
+      color: cardColor,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    employee['userName'] ?? 'Unknown',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                if (aiRecommendation != null && aiRecommendation.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.psychology, size: 12, color: Colors.purple.shade700),
+                        const SizedBox(width: 2),
+                        Text(
+                          'AI: ${aiRecommendation['riskScore']}/10',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.purple.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            Text('${employee['position']} - ${employee['department']}'),
+            const SizedBox(height: 8),
+            Text('Attendance: ${attendanceRate.toStringAsFixed(1)}%'),
+            Text('Late Rate: ${lateRate.toStringAsFixed(1)}%'),
+            Text('Absence Rate: ${absenceRate.toStringAsFixed(1)}%'),
+            if (consecutiveAbsences > 0)
+              Text(
+                'Consecutive Absences: $consecutiveAbsences days',
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            Text(
+              'Category: ${employee['performanceCategory']}',
+              style: TextStyle(
+                color: employee['performanceCategory'] == 'Critical' ? Colors.red : Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            // AI Recommendation preview
+            if (aiRecommendation != null && aiRecommendation.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.smart_toy, size: 14, color: Colors.purple.shade700),
+                        const SizedBox(width: 4),
+                        Text(
+                          'AI Recommendation:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      aiRecommendation['recommendedAction']?.toString().replaceAll('_', ' ').toUpperCase() ?? 'N/A',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.purple.shade600,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDetailedReport(List<Map<String, dynamic>> poorPerformers, Map<String, dynamic>? aiAnalysis) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Text('AI-Enhanced Disciplinary Report'),
+              const SizedBox(width: 8),
+              Icon(Icons.psychology, color: Colors.purple.shade700),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 600,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // AI Analysis Header
+                  if (aiAnalysis != null && aiAnalysis['success'] == true) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.purple.shade50, Colors.purple.shade100],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.smart_toy, color: Colors.purple.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                'AI ANALYSIS REPORT',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: Colors.purple.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text('Provider: ${aiAnalysis['aiProvider']}'),
+                          Text('Analysis Date: ${DateTime.parse(aiAnalysis['analysisTimestamp']).toLocal().toString().split('.')[0]}'),
+                          Text('Overall Risk Score: ${aiAnalysis['overallRiskScore']}/10'),
+                          Text('Next Review: ${DateTime.parse(aiAnalysis['nextReviewDate']).toLocal().toString().split(' ')[0]}'),
+                          const SizedBox(height: 12),
+                          Text(
+                            aiAnalysis['summary'] ?? 'No summary available',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  
+                  const Text(
+                    'RECOMMENDATION FOR DISCIPLINARY ACTION',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // AI Patterns and Insights
+                  if (aiAnalysis != null && aiAnalysis['success'] == true) ...[
+                    if (aiAnalysis['patternsDetected'] != null && (aiAnalysis['patternsDetected'] as List).isNotEmpty) ...[
+                      const Text(
+                        'AI-DETECTED PATTERNS:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...((aiAnalysis['patternsDetected'] as List).map((pattern) => 
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.pattern, size: 16, color: Colors.orange.shade700),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text('$pattern')),
+                            ],
+                          ),
+                        )
+                      )).toList(),
+                      const SizedBox(height: 16),
+                    ],
+                    
+                    if (aiAnalysis['insights'] != null && (aiAnalysis['insights'] as List).isNotEmpty) ...[
+                      const Text(
+                        'AI INSIGHTS:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...((aiAnalysis['insights'] as List).map((insight) => 
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.lightbulb, size: 16, color: Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text('$insight')),
+                            ],
+                          ),
+                        )
+                      )).toList(),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
+                  
+                  const Text(
+                    'The following employees have been identified as having poor attendance records that warrant disciplinary action:',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  ...poorPerformers.asMap().entries.map((entry) {
+                    final index = entry.key + 1;
+                    final employee = entry.value;
+                    return _buildDetailedEmployeeReport(index, employee, aiAnalysis);
+                  }).toList(),
+                  
+                  const SizedBox(height: 20),
+                  const Text(
+                    'AI-RECOMMENDED ACTIONS:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // AI-powered recommendations
+                  if (aiAnalysis != null && aiAnalysis['success'] == true && aiAnalysis['recommendations'] != null) ...[
+                    ...((aiAnalysis['recommendations'] as List).map((rec) => 
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.purple.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.person, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${rec['employeeName']} (Risk: ${rec['riskScore']}/10)',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Recommended Action: ${rec['recommendedAction']?.toString().replaceAll('_', ' ').toUpperCase()}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: rec['severity'] == 'critical' ? Colors.red : Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'AI Reasoning: ${rec['aiReasoning']}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Suggested Message: "${rec['personalizedMessage']}"',
+                              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
+                      )
+                    )).toList(),
+                  ] else ...[
+                    // Fallback to basic recommendations
+                    ...poorPerformers.map((employee) {
+                      final category = employee['performanceCategory'];
+                      final name = employee['userName'];
+                      
+                      if (category == 'Critical') {
+                        return Text('• $name: Consider immediate termination or final warning');
+                      } else {
+                        return Text('• $name: Issue written warning and performance improvement plan');
+                      }
+                    }).toList(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+            if (aiAnalysis != null && aiAnalysis['success'] == true)
+              ElevatedButton(
+                onPressed: () {
+                  // In a real app, this could export the report or send it via email
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('AI Report would be exported/sent to HR department'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Export AI Report'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailedEmployeeReport(int index, Map<String, dynamic> employee, Map<String, dynamic>? aiAnalysis) {
+    final reasons = <String>[];
+    
+    if ((employee['attendancePercentage'] ?? 0) < 80) {
+      reasons.add('Low attendance rate (${(employee['attendancePercentage'] ?? 0).toStringAsFixed(1)}%)');
+    }
+    if ((employee['latePercentage'] ?? 0) > 30) {
+      reasons.add('Excessive tardiness (${(employee['latePercentage'] ?? 0).toStringAsFixed(1)}% of days)');
+    }
+    if ((employee['absencePercentage'] ?? 0) > 20) {
+      reasons.add('High absence rate (${(employee['absencePercentage'] ?? 0).toStringAsFixed(1)}%)');
+    }
+    if ((employee['consecutiveAbsences'] ?? 0) > 3) {
+      reasons.add('${employee['consecutiveAbsences']} consecutive days absent');
+    }
+    
+    // Find AI recommendation for this employee
+    Map<String, dynamic>? aiRecommendation;
+    if (aiAnalysis != null && aiAnalysis['success'] == true) {
+      final recommendations = List<Map<String, dynamic>>.from(aiAnalysis['recommendations'] ?? []);
+      aiRecommendation = recommendations.firstWhere(
+        (rec) => rec['employeeName'] == employee['userName'],
+        orElse: () => <String, dynamic>{},
+      );
+    }
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.red.shade300),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.red.shade50,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$index. ${employee['userName']} (${employee['email']})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              if (aiRecommendation != null && aiRecommendation.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'AI Risk: ${aiRecommendation['riskScore']}/10',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purple.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          Text('Position: ${employee['position']}'),
+          Text('Department: ${employee['department']}'),
+          const SizedBox(height: 8),
+          const Text(
+            'Violations:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          ...reasons.map((reason) => Text('  • $reason')).toList(),
+          const SizedBox(height: 8),
+          Text(
+            'Performance Category: ${employee['performanceCategory']}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: employee['performanceCategory'] == 'Critical' ? Colors.red : Colors.orange,
+            ),
+          ),
+          
+          // AI-specific insights
+          if (aiRecommendation != null && aiRecommendation.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.purple.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.psychology, size: 16, color: Colors.purple.shade700),
+                      const SizedBox(width: 8),
+                      Text(
+                        'AI Analysis:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Severity: ${aiRecommendation['severity']?.toString().toUpperCase()}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: aiRecommendation['severity'] == 'critical' ? Colors.red : Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Recommended Action: ${aiRecommendation['recommendedAction']?.toString().replaceAll('_', ' ').toUpperCase()}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'AI Reasoning: ${aiRecommendation['aiReasoning']}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Suggested Communication:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '"${aiRecommendation['personalizedMessage']}"',
+                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
             ),
           ],
         );

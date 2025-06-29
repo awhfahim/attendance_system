@@ -20,8 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     // Pre-fill with demo credentials
-    _emailController.text = 'admin@company.com';
-    _passwordController.text = 'admin123';
+    _emailController.text = '';
+    _passwordController.text = '';
   }
 
   @override
@@ -199,45 +199,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   },
-                ),
-                const SizedBox(height: 30),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.info.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: AppColors.info,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Demo Credentials',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.info,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Admin: admin@company.com / admin123\nEmployee: employee@company.com / emp123',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),

@@ -418,5 +418,171 @@ namespace AttendanceSystemAPI.Controllers
                 return StatusCode(500, new { message = $"Failed to get recent attendance: {ex.Message}" });
             }
         }
+
+        [HttpGet("analytics")]
+        public async Task<ActionResult<AttendanceAnalyticsDto>> GetAttendanceAnalytics(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                // Check if current user is admin
+                var currentUserId = GetCurrentUserId();
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == currentUserId);
+                
+                if (currentUser?.IsAdmin != true)
+                {
+                    return Forbid("Only administrators can access attendance analytics");
+                }
+
+                // Set default date range (last 30 days if not specified)
+                var end = endDate ?? DateTime.UtcNow.Date;
+                var start = startDate ?? end.AddDays(-30);
+
+                // Get all users
+                var allUsers = await _context.Users.Where(u => !u.IsAdmin).ToListAsync();
+                
+                // Get all attendance records for the date range
+                var attendanceRecords = await _context.AttendanceRecords
+                    .Include(a => a.User)
+                    .Where(a => a.CheckInTime.HasValue && 
+                               a.CheckInTime.Value.Date >= start && 
+                               a.CheckInTime.Value.Date <= end)
+                    .ToListAsync();
+
+                var employeePerformances = new List<EmployeePerformanceDto>();
+
+                foreach (var user in allUsers)
+                {
+                    var userRecords = attendanceRecords.Where(a => a.UserId == user.Id).ToList();
+                    
+                    // Calculate working days in the period (excluding weekends)
+                    var totalWorkingDays = 0;
+                    for (var date = start; date <= end; date = date.AddDays(1))
+                    {
+                        if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+                        {
+                            totalWorkingDays++;
+                        }
+                    }
+
+                    var daysPresent = userRecords.Count;
+                    var daysAbsent = totalWorkingDays - daysPresent;
+                    var daysLate = userRecords.Count(r => r.CheckInTime?.Hour > 9 || 
+                                                          (r.CheckInTime?.Hour == 9 && r.CheckInTime?.Minute > 0));
+                    
+                    var totalHours = userRecords.Sum(r => r.TotalHours ?? 0);
+                    var avgDailyHours = daysPresent > 0 ? totalHours / daysPresent : 0;
+                    var attendancePercentage = totalWorkingDays > 0 ? (double)daysPresent / totalWorkingDays * 100 : 0;
+                    var latePercentage = daysPresent > 0 ? (double)daysLate / daysPresent * 100 : 0;
+                    var absencePercentage = totalWorkingDays > 0 ? (double)daysAbsent / totalWorkingDays * 100 : 0;
+
+                    // Calculate consecutive absences
+                    var consecutiveAbsences = CalculateConsecutiveAbsences(user.Id, attendanceRecords, end);
+                    
+                    // Determine performance category
+                    var performanceCategory = DeterminePerformanceCategory(attendancePercentage, latePercentage, absencePercentage, consecutiveAbsences);
+
+                    var lastAttendance = userRecords.OrderByDescending(r => r.CheckInTime).FirstOrDefault()?.CheckInTime;
+
+                    employeePerformances.Add(new EmployeePerformanceDto
+                    {
+                        UserId = user.Id,
+                        UserName = user.Name,
+                        Department = user.Department,
+                        Position = user.Position,
+                        Email = user.Email,
+                        TotalWorkingDays = totalWorkingDays,
+                        DaysPresent = daysPresent,
+                        DaysAbsent = daysAbsent,
+                        DaysLate = daysLate,
+                        TotalHoursWorked = Math.Round(totalHours, 2),
+                        AverageDailyHours = Math.Round(avgDailyHours, 2),
+                        AttendancePercentage = Math.Round(attendancePercentage, 2),
+                        LatePercentage = Math.Round(latePercentage, 2),
+                        AbsencePercentage = Math.Round(absencePercentage, 2),
+                        ConsecutiveAbsences = consecutiveAbsences,
+                        LastAttendanceDate = lastAttendance,
+                        PerformanceCategory = performanceCategory
+                    });
+                }
+
+                // Identify poor performers (attendance < 80% OR late > 30% OR absence > 20% OR consecutive absences > 3)
+                var poorPerformers = employeePerformances
+                    .Where(ep => ep.AttendancePercentage < 80 || 
+                                ep.LatePercentage > 30 || 
+                                ep.AbsencePercentage > 20 || 
+                                ep.ConsecutiveAbsences > 3 ||
+                                ep.PerformanceCategory == "Critical" ||
+                                ep.PerformanceCategory == "Poor")
+                    .OrderBy(ep => ep.AttendancePercentage)
+                    .ThenByDescending(ep => ep.AbsencePercentage)
+                    .ToList();
+
+                var avgAttendanceRate = employeePerformances.Average(ep => ep.AttendancePercentage);
+                var avgLateRate = employeePerformances.Average(ep => ep.LatePercentage);
+
+                var analytics = new AttendanceAnalyticsDto
+                {
+                    StartDate = start,
+                    EndDate = end,
+                    TotalEmployees = allUsers.Count,
+                    EmployeePerformances = employeePerformances.OrderBy(ep => ep.UserName).ToList(),
+                    PoorPerformers = poorPerformers,
+                    AverageAttendanceRate = Math.Round(avgAttendanceRate, 2),
+                    AverageLateRate = Math.Round(avgLateRate, 2)
+                };
+
+                return Ok(analytics);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Failed to get attendance analytics: {ex.Message}" });
+            }
+        }
+
+        private int CalculateConsecutiveAbsences(string userId, List<AttendanceRecord> allRecords, DateTime endDate)
+        {
+            var userRecords = allRecords.Where(a => a.UserId == userId)
+                .OrderByDescending(a => a.CheckInTime)
+                .ToList();
+
+            var consecutiveDays = 0;
+            var currentDate = endDate.Date;
+
+            while (currentDate.DayOfWeek != DayOfWeek.Saturday && currentDate.DayOfWeek != DayOfWeek.Sunday)
+            {
+                var hasRecord = userRecords.Any(r => r.CheckInTime?.Date == currentDate);
+                if (hasRecord)
+                {
+                    break;
+                }
+                consecutiveDays++;
+                currentDate = currentDate.AddDays(-1);
+                
+                // Limit to prevent infinite loop
+                if (consecutiveDays > 30) break;
+            }
+
+            return consecutiveDays;
+        }
+
+        private string DeterminePerformanceCategory(double attendancePercentage, double latePercentage, double absencePercentage, int consecutiveAbsences)
+        {
+            // Critical: Very poor attendance or excessive absences
+            if (attendancePercentage < 60 || absencePercentage > 40 || consecutiveAbsences > 5)
+                return "Critical";
+            
+            // Poor: Below acceptable standards
+            if (attendancePercentage < 80 || latePercentage > 30 || absencePercentage > 20 || consecutiveAbsences > 3)
+                return "Poor";
+            
+            // Good: Acceptable performance with room for improvement
+            if (attendancePercentage < 95 || latePercentage > 15 || absencePercentage > 10)
+                return "Good";
+            
+            // Excellent: Outstanding performance
+            return "Excellent";
+        }
     }
 }

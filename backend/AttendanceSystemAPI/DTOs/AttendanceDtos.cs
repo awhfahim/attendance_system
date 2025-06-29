@@ -95,6 +95,39 @@ namespace AttendanceSystemAPI.DTOs
         public double AverageHours { get; set; }
     }
 
+    // Employee Performance Analytics DTOs
+    public class EmployeePerformanceDto
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string Position { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int TotalWorkingDays { get; set; }
+        public int DaysPresent { get; set; }
+        public int DaysAbsent { get; set; }
+        public int DaysLate { get; set; }
+        public double TotalHoursWorked { get; set; }
+        public double AverageDailyHours { get; set; }
+        public double AttendancePercentage { get; set; }
+        public double LatePercentage { get; set; }
+        public double AbsencePercentage { get; set; }
+        public int ConsecutiveAbsences { get; set; }
+        public DateTime? LastAttendanceDate { get; set; }
+        public string PerformanceCategory { get; set; } = string.Empty; // Excellent, Good, Poor, Critical
+    }
+
+    public class AttendanceAnalyticsDto
+    {
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public int TotalEmployees { get; set; }
+        public List<EmployeePerformanceDto> EmployeePerformances { get; set; } = new();
+        public List<EmployeePerformanceDto> PoorPerformers { get; set; } = new();
+        public double AverageAttendanceRate { get; set; }
+        public double AverageLateRate { get; set; }
+    }
+
     // User Management DTOs
     public class CreateUserDto
     {
