@@ -220,42 +220,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             _buildSettingsTile(
-              Icons.notifications,
-              'Notifications',
-              'Manage notification preferences',
-              () {
-                // TODO: Navigate to notification settings
-              },
-            ),
-            const Divider(height: 1),
-            _buildSettingsTile(
-              Icons.security,
-              'Security',
-              'Change password and security settings',
-              () {
-                // TODO: Navigate to security settings
-              },
-            ),
-            const Divider(height: 1),
-            _buildSettingsTile(
-              Icons.location_on,
-              'Location Settings',
-              'Manage location permissions',
-              () {
-                // TODO: Navigate to location settings
-              },
-            ),
-            const Divider(height: 1),
-            _buildSettingsTile(
-              Icons.help,
-              'Help & Support',
-              'Get help and contact support',
-              () {
-                // TODO: Navigate to help screen
-              },
-            ),
-            const Divider(height: 1),
-            _buildSettingsTile(
               Icons.info,
               'About',
               'App version and information',
